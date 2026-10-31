@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+{% if logged_in %}
+  <p>Signed in to Steam.</p>
+  <form method="post" action="/logout"><button>Sign out</button></form>
+{% else %}
+  <p>Not signed in to Steam.</p>
+  <form method="post" action="/login"><button>Sign in with QR code</button></form>
+{% endif %}
+{% endblock %}

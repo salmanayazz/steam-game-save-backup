@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 
 from app.config import settings
 from app.steam import auth, session, web
+from app.steam.parser import ParseError
 
 BASE = Path(__file__).parent
 templates = Jinja2Templates(directory=BASE / "templates")
@@ -44,10 +45,25 @@ async def index(request: Request):
     if client:
         async with client:
             try:
-                logged_in = await web.is_logged_in(client)
+                logged_in = await web.SteamCloud(client).is_logged_in()
             except httpx.HTTPError:
                 pass
     return templates.TemplateResponse(request, "index.html", {"logged_in": logged_in})
+
+
+@app.get("/games", response_class=HTMLResponse)
+async def games(request: Request):
+    client = session.load(settings.session_file)
+    if not client:
+        return RedirectResponse("/", status_code=303)
+    async with client:
+        try:
+            found = await web.SteamCloud(client).list_games()
+        except web.SessionExpired:
+            return RedirectResponse("/", status_code=303)
+        except (httpx.HTTPError, ParseError) as e:
+            raise HTTPException(502, f"Could not read Steam Cloud: {e}")
+    return templates.TemplateResponse(request, "games.html", {"games": found})
 
 
 @app.post("/login", response_class=HTMLResponse)

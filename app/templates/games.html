@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="/">&larr; Back</a></p>
+<h2>Steam Cloud games</h2>
+<table>
+  <tr><th align="left">Game</th><th>Files</th><th>Size</th></tr>
+  {% for g in games %}
+  <tr><td>{{ g.name }}</td><td align="right">{{ g.file_count }}</td><td align="right">{{ "%.1f"|format(g.size / 1048576) }} MB</td></tr>
+  {% endfor %}
+</table>
+{% endblock %}

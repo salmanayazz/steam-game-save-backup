@@ -1,5 +1,5 @@
 {% if sync.running %}
-<div hx-get="/sync/status" hx-trigger="load delay:2s" hx-swap="outerHTML">
+<div hx-get="/sync/status" hx-trigger="load delay:{{ sync_poll_seconds }}s" hx-swap="outerHTML">
   <p>Syncing{% if sync.current %} <strong>{{ sync.current }}</strong>{% endif %}… {{ sync.done }}/{{ sync.total }} games, {{ sync.new_versions }} new versions</p>
 </div>
 {% else %}

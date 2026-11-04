@@ -8,10 +8,12 @@ class Settings(BaseSettings):
 
     data_dir: Path = Path("data")
     sync_interval_minutes: int = 120  # 0 disables the background schedule
-    request_delay_min: float = 3.0
+    request_delay_min: float = 3.0  # between Steam store page requests
     request_delay_max: float = 5.0
     download_delay_min: float = 0.5
     download_delay_max: float = 1.5
+    sync_poll_seconds: int = 2  # how often the browser refreshes sync progress
+    login_poll_seconds: int = 2  # how often the browser checks the QR login
 
     @property
     def session_file(self) -> Path:

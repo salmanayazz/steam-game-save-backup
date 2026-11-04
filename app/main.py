@@ -6,13 +6,14 @@ from pathlib import Path
 
 import httpx
 import segno
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, RedirectResponse, Response
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import selectinload
 
+from app.archive import build_zip, safe_name
 from app.config import settings
 from app.db import Database
 from app.models import Game, Version
@@ -21,6 +22,8 @@ from app.sync import SyncManager
 
 BASE = Path(__file__).parent
 templates = Jinja2Templates(directory=BASE / "templates")
+templates.env.globals["sync_poll_seconds"] = settings.sync_poll_seconds
+templates.env.globals["login_poll_seconds"] = settings.login_poll_seconds
 
 # In-flight QR logins, keyed by an unguessable id handed to the browser.
 logins: dict[str, auth.QrLogin] = {}
@@ -106,6 +109,28 @@ async def game_detail(request: Request, app_id: int):
     if not game:
         raise HTTPException(404, "Unknown game")
     return templates.TemplateResponse(request, "game.html", {"game": game})
+
+
+@app.get("/games/{app_id}/versions/{number}/download")
+async def download_version(request: Request, app_id: int, number: int, background: BackgroundTasks):
+    async with request.app.state.db.session() as db:
+        version = await db.scalar(
+            select(Version)
+            .where(Version.app_id == app_id, Version.number == number)
+            .options(selectinload(Version.files), selectinload(Version.game))
+        )
+    if not version:
+        raise HTTPException(404, "Unknown version")
+    blobs = request.app.state.sync.blobs
+    tmp = blobs.tmp_path()
+    try:
+        await asyncio.to_thread(build_zip, version, blobs, tmp)
+    except OSError as e:
+        tmp.unlink(missing_ok=True)
+        raise HTTPException(500, f"Could not build archive: {e}")
+    background.add_task(tmp.unlink, missing_ok=True)
+    name = f"{safe_name(version.game.name)}-v{number}.zip"
+    return FileResponse(tmp, media_type="application/zip", filename=name, background=background)
 
 
 @app.post("/login", response_class=HTMLResponse)

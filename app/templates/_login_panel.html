@@ -4,7 +4,7 @@
   <form method="post" action="/login"><button>Try again</button></form>
 </div>
 {% else %}
-<div hx-get="/login/{{ login_id }}/panel" hx-trigger="load delay:2s" hx-swap="outerHTML">
+<div hx-get="/login/{{ login_id }}/panel" hx-trigger="load delay:{{ login_poll_seconds }}s" hx-swap="outerHTML">
   <p>{% if scanned %}Approve the sign-in on your phone.{% else %}Open the Steam mobile app, tap the Steam Guard shield, then scan this QR code.{% endif %}</p>
   <div class="qr">{{ qr|safe }}</div>
 </div>

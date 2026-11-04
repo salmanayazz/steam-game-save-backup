@@ -10,9 +10,14 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
 
+from sqlalchemy import func, select
+from sqlalchemy.orm import selectinload
+
 from app.config import settings
+from app.db import Database
+from app.models import Game, Version
 from app.steam import auth, session, web
-from app.steam.parser import ParseError
+from app.sync import SyncManager
 
 BASE = Path(__file__).parent
 templates = Jinja2Templates(directory=BASE / "templates")
@@ -23,10 +28,22 @@ logins: dict[str, auth.QrLogin] = {}
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    settings.data_dir.mkdir(parents=True, exist_ok=True)
+    db = Database(settings.db_url)
+    await db.create_all()
+    app.state.db = db
+    app.state.sync = SyncManager(db, settings)
+    scheduler = None
+    if settings.sync_interval_minutes > 0:
+        scheduler = asyncio.create_task(app.state.sync.schedule_forever())
     yield
+    if scheduler:
+        scheduler.cancel()
+    await app.state.sync.stop()
     for login in logins.values():
         if login.task:
             login.task.cancel()
+    await db.close()
 
 
 app = FastAPI(lifespan=lifespan)
@@ -48,22 +65,47 @@ async def index(request: Request):
                 logged_in = await web.SteamCloud(client).is_logged_in()
             except httpx.HTTPError:
                 pass
-    return templates.TemplateResponse(request, "index.html", {"logged_in": logged_in})
+    return templates.TemplateResponse(
+        request, "index.html", {"logged_in": logged_in, "sync": request.app.state.sync.status}
+    )
+
+
+@app.post("/sync")
+async def start_sync(request: Request):
+    request.app.state.sync.start()
+    return RedirectResponse("/", status_code=303)
+
+
+@app.get("/sync/status", response_class=HTMLResponse)
+async def sync_status(request: Request):
+    return templates.TemplateResponse(
+        request, "_sync_status.html", {"sync": request.app.state.sync.status}
+    )
 
 
 @app.get("/games", response_class=HTMLResponse)
 async def games(request: Request):
-    client = session.load(settings.session_file)
-    if not client:
-        return RedirectResponse("/", status_code=303)
-    async with client:
-        try:
-            found = await web.SteamCloud(client).list_games()
-        except web.SessionExpired:
-            return RedirectResponse("/", status_code=303)
-        except (httpx.HTTPError, ParseError) as e:
-            raise HTTPException(502, f"Could not read Steam Cloud: {e}")
-    return templates.TemplateResponse(request, "games.html", {"games": found})
+    async with request.app.state.db.session() as db:
+        rows = (
+            await db.execute(
+                select(Game, func.count(Version.id), func.max(Version.created_at))
+                .outerjoin(Version)
+                .group_by(Game.app_id)
+                .order_by(Game.name)
+            )
+        ).all()
+    return templates.TemplateResponse(request, "games.html", {"rows": rows})
+
+
+@app.get("/games/{app_id}", response_class=HTMLResponse)
+async def game_detail(request: Request, app_id: int):
+    async with request.app.state.db.session() as db:
+        game = await db.scalar(
+            select(Game).where(Game.app_id == app_id).options(selectinload(Game.versions).selectinload(Version.files))
+        )
+    if not game:
+        raise HTTPException(404, "Unknown game")
+    return templates.TemplateResponse(request, "game.html", {"game": game})
 
 
 @app.post("/login", response_class=HTMLResponse)

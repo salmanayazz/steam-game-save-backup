@@ -20,9 +20,15 @@ class SessionExpired(Exception):
 class SteamCloud:
     """Polite client for the remote storage pages: jittered delay between requests, retries."""
 
-    def __init__(self, client: httpx.AsyncClient, delay: tuple[float, float] = (3.0, 5.0)):
+    def __init__(
+        self,
+        client: httpx.AsyncClient,
+        delay: tuple[float, float] = (3.0, 5.0),
+        download_delay: tuple[float, float] = (0.5, 1.5),
+    ):
         self.client = client
-        self.delay = delay
+        self.delay = delay  # between store page requests (rate limited by Steam)
+        self.download_delay = download_delay  # between file downloads from the CDN
 
     async def _get(self, url: str, **kwargs) -> httpx.Response:
         for attempt in range(MAX_ATTEMPTS):
@@ -60,7 +66,7 @@ class SteamCloud:
         dest.parent.mkdir(parents=True, exist_ok=True)
         tmp = dest.with_name(dest.name + ".part")
         for attempt in range(MAX_ATTEMPTS):
-            await asyncio.sleep(random.uniform(*self.delay))
+            await asyncio.sleep(random.uniform(*self.download_delay))
             try:
                 async with self.client.stream("GET", file.url) as resp:
                     resp.raise_for_status()

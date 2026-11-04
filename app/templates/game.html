@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<p><a href="/games">&larr; All games</a></p>
+<h2>{{ game.name }}</h2>
+{% if not game.versions %}<p>No versions stored.</p>{% endif %}
+<table>
+  <tr><th align="left">Version</th><th align="left">Saved</th><th>Files</th><th>Size</th></tr>
+  {% for v in game.versions %}
+  <tr>
+    <td>#{{ v.number }}</td>
+    <td>{{ v.created_at.strftime("%Y-%m-%d %H:%M UTC") }}</td>
+    <td align="right">{{ v.files|length }}</td>
+    <td align="right">{{ "%.2f"|format(v.total_size / 1048576) }} MB</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endblock %}

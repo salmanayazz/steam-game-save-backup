@@ -2,7 +2,9 @@
 {% block content %}
 {% if logged_in %}
   <p>Signed in to Steam.</p>
-  <p><a href="/games">View Steam Cloud games</a></p>
+  <p><a href="/games">Backed-up games</a></p>
+  <form method="post" action="/sync"><button {% if sync.running %}disabled{% endif %}>Sync now</button></form>
+  {% include "_sync_status.html" %}
   <form method="post" action="/logout"><button>Sign out</button></form>
 {% else %}
   <p>Not signed in to Steam.</p>

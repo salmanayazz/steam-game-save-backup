@@ -1,11 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
 <p><a href="/">&larr; Back</a></p>
-<h2>Steam Cloud games</h2>
+<h2>Backed-up games</h2>
+{% if not rows %}<p>Nothing yet. Run a sync from the home page.</p>{% endif %}
 <table>
-  <tr><th align="left">Game</th><th>Files</th><th>Size</th></tr>
-  {% for g in games %}
-  <tr><td>{{ g.name }}</td><td align="right">{{ g.file_count }}</td><td align="right">{{ "%.1f"|format(g.size / 1048576) }} MB</td></tr>
+  <tr><th align="left">Game</th><th>Versions</th><th align="left">Last change</th></tr>
+  {% for game, count, last in rows %}
+  <tr>
+    <td><a href="/games/{{ game.app_id }}">{{ game.name }}</a></td>
+    <td align="right">{{ count }}</td>
+    <td>{{ last.strftime("%Y-%m-%d %H:%M UTC") if last else "—" }}</td>
+  </tr>
   {% endfor %}
 </table>
 {% endblock %}

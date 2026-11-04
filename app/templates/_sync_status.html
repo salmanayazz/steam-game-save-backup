@@ -1,0 +1,11 @@
+{% if sync.running %}
+<div hx-get="/sync/status" hx-trigger="load delay:2s" hx-swap="outerHTML">
+  <p>Syncing{% if sync.current %} <strong>{{ sync.current }}</strong>{% endif %}… {{ sync.done }}/{{ sync.total }} games, {{ sync.new_versions }} new versions</p>
+</div>
+{% else %}
+<div>
+  {% if sync.error %}<p class="error">{{ sync.error }}</p>
+  {% elif sync.finished_at %}<p>Last sync finished {{ sync.finished_at.strftime("%Y-%m-%d %H:%M UTC") }}: {{ sync.new_versions }} new versions{% if sync.errors %}, <span class="error">{{ sync.errors }} games failed</span>{% endif %}.</p>
+  {% else %}<p>No sync yet this session.</p>{% endif %}
+</div>
+{% endif %}

@@ -10,7 +10,8 @@ from app.steam import auth
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     monkeypatch.setattr(main.settings, "data_dir", tmp_path)
-    return TestClient(main.app)
+    with TestClient(main.app) as c:
+        yield c
 
 
 @respx.mock

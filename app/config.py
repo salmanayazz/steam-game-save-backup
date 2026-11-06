@@ -12,6 +12,7 @@ class Settings(BaseSettings):
     request_delay_max: float = 5.0
     download_delay_min: float = 0.5
     download_delay_max: float = 1.5
+    manifest_refresh_hours: float = 24  # 0 disables
     sync_poll_seconds: int = 2  # how often the browser refreshes sync progress
     login_poll_seconds: int = 2  # how often the browser checks the QR login
 
@@ -22,6 +23,10 @@ class Settings(BaseSettings):
     @property
     def db_url(self) -> str:
         return f"sqlite+aiosqlite:///{self.data_dir / 'app.db'}"
+
+    @property
+    def manifest_dir(self) -> Path:
+        return self.data_dir / "manifest"
 
     @property
     def blob_dir(self) -> Path:

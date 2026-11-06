@@ -18,8 +18,9 @@ def test_entry_name_blocks_traversal():
 
 @pytest.fixture
 def client(tmp_path, monkeypatch):
-    for attr in ("data_dir",):
-        monkeypatch.setattr(main.settings, attr, tmp_path)
+    monkeypatch.setattr(main.settings, "data_dir", tmp_path)
+    monkeypatch.setattr(main.settings, "manifest_refresh_hours", 0)
+    monkeypatch.setattr(main.settings, "sync_interval_minutes", 0)
     with TestClient(main.app) as c:
         yield c
 

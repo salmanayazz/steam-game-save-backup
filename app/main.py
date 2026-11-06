@@ -16,6 +16,7 @@ from sqlalchemy.orm import selectinload
 from app.archive import build_zip, safe_name
 from app.config import settings
 from app.db import Database
+from app.manifest import ManifestStore
 from app.models import Game, Version
 from app.steam import auth, session, web
 from app.sync import SyncManager
@@ -36,12 +37,21 @@ async def lifespan(app: FastAPI):
     await db.create_all()
     app.state.db = db
     app.state.sync = SyncManager(db, settings)
+    app.state.manifest = ManifestStore(settings.manifest_dir)
+    app.state.manifest.load()
+    manifest_task = None
+    if settings.manifest_refresh_hours > 0:
+        manifest_task = asyncio.create_task(
+            app.state.manifest.refresh_forever(settings.manifest_refresh_hours)
+        )
     scheduler = None
     if settings.sync_interval_minutes > 0:
         scheduler = asyncio.create_task(app.state.sync.schedule_forever())
     yield
     if scheduler:
         scheduler.cancel()
+    if manifest_task:
+        manifest_task.cancel()
     await app.state.sync.stop()
     for login in logins.values():
         if login.task:
@@ -108,7 +118,10 @@ async def game_detail(request: Request, app_id: int):
         )
     if not game:
         raise HTTPException(404, "Unknown game")
-    return templates.TemplateResponse(request, "game.html", {"game": game})
+    manifest = request.app.state.manifest
+    return templates.TemplateResponse(
+        request, "game.html", {"game": game, "entry": manifest.lookup(app_id), "manifest": manifest}
+    )
 
 
 @app.get("/games/{app_id}/versions/{number}/download")

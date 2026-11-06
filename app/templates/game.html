@@ -15,4 +15,21 @@
   </tr>
   {% endfor %}
 </table>
+
+<h3>Typical save locations</h3>
+{% if entry %}
+<table>
+  <tr><th align="left">OS</th><th align="left">Path</th></tr>
+  {% for loc in entry.locations %}
+  <tr>
+    <td>{{ loc.os|join(", ") or "any" }}</td>
+    <td><code>{{ loc.path }}</code></td>
+  </tr>
+  {% endfor %}
+</table>
+<p class="note">Placeholders like <code>&lt;winLocalAppData&gt;</code> or <code>&lt;base&gt;</code> (the game's install folder) depend on your machine.
+Data from the <a href="https://github.com/mtkennerly/ludusavi-manifest">Ludusavi manifest</a> (PCGamingWiki){% if manifest.updated_at %}, updated {{ manifest.updated_at.strftime("%Y-%m-%d") }}{% endif %}.</p>
+{% else %}
+<p>No known locations{% if not manifest.games %} (manifest not downloaded yet){% endif %}.</p>
+{% endif %}
 {% endblock %}

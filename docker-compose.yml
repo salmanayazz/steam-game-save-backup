@@ -4,7 +4,6 @@ services:
     image: steam-game-save-backup
     restart: unless-stopped
     ports:
-      # Localhost only: the app has no login, so don't expose it to the network.
-      - "127.0.0.1:8000:8000"
+      - "8000:8000"
     volumes:
       - ./data:/data
